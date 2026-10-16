@@ -1,27 +1,31 @@
-# Doldrum Build 003: Menus and save slots
+# Doldrum Build 004: Combat + Art
 
-This is an **overlay update** for the existing Build 002 GitHub repository. Copy these files over the existing project, preserving the existing `src/world/Room.cpp`, `src/world/Room.hpp`, `data/rooms/room_start.txt`, `data/rooms/room_east.txt`, and `CMakePresets.json`.
-
-## Features
-- Animated block-letter DOLDRUM title, light-up / fade UI buttons and mouse support
-- Main Menu: Play Game, Quit, F fullscreen toggle
-- Three persistent save slots and playtime counters
-- Empty slot creates a new save, existing slot loads the hub
-- Two-step deletion: DELETE FILE, then choose a slot, then CONFIRM DELETE; BACK cancels
-- Hub TXT room with north doorway into the existing two-room dungeon
-- Esc in hub or dungeon opens pause overlay; Resume and Quit to Menu
-- Play time autosaves approximately every 10 seconds and when changing screens / quitting
-- Organized folders under assets/ to begin adding pixel art
+Apply these changed files to your existing GitHub checkout. **Do not delete your Git repository or artwork.** The art PNGs live in your repo and are deliberately not re-bundled here.
 
 ## Controls
-WASD move; arrow keys shoot; mouse hover / click menu buttons; Esc pause/back; F fullscreen.
+- WASD: movement
+- Arrow keys: four-way fire in gameplay; navigate selected menu option in menus
+- Enter: activate selected option
+- Mouse: hover and click buttons
+- F: toggle fullscreen
+- Escape: pause or resume, or return from save menu
 
-## Save location
-The game uses SDL_GetPrefPath("MorseLoc", "Doldrum") to save slot_1.txt, slot_2.txt, slot_3.txt to a writable user application data directory. These files are not included in GitHub. Save format is a small versioned prototype text format, designed to be expanded later.
+## Content
+- Squibs enter dungeon rooms and pursue the player directly, stopping at walls. Three are placed using walkable tile coordinates. Two hits kill a Squib. Squibs do not respawn in cleared rooms during one run.
+- Six maximum health points, HUD displays three heart-style meters, contact damage + invulnerability, death screen returning to hub for a new run.
+- Projectile delay increased from 0.18 s to 0.58 s.
+- PNG sprites loaded using SDL3_image, preserving transparency. Transparent-padding crops are calculated once at load time, so DoldShot.png's 32x32 transparent canvas does not shrink the shot. Dold/Squib sprite anchors align to ground with height overlapping floor tiles.
+- Missing images use old placeholder drawings. Images are looked up by exact filenames in assets/ as committed to GitHub.
 
-## Working with your GitHub repo
-Open the existing Doldrum project folder in Visual Studio. Copy the overlay files in, allow CMake to reconfigure, build and run. **Do not delete the existing src/world or original data/rooms files.** Commit/push after confirming it compiles and behaves as expected.
+## Image filenames (preserve exact case)
+- assets/backgrounds/Floor.png
+- assets/tiles/Wall.png, Door.png
+- assets/characters/Dold.png
+- assets/enemies/Squib.png
+- assets/projectiles/DoldShot.png
 
-## Pixel-art folders
-assets/characters, enemies, tiles, props, projectiles, items, cards, ui, fonts, effects, backgrounds.
-The temporary bitmap UI font and dungeon shapes are programmatic placeholders. PNG asset loading and sprite animations will be added when art is ready.
+## Important
+- SDL3_image is a new dependency, fetched by CMake on first configure if not already installed. An internet connection is needed on your Windows machine.
+- Save slots retain playtime only, as before. Returning from death starts a new run, with the same save slot.
+- PNGs and final art may require sizing adjustments after testing in the actual game.
+- This build is not yet verified by a full Windows/SDL3 compile.

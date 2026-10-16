@@ -1,5 +1,6 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
+#include <SDL3_image/SDL_image.h>
 #include "world/Room.hpp"
 
 #include <algorithm>
@@ -22,11 +23,16 @@ constexpr int H = doldrum::kRoomHeight * doldrum::kTileSize;
 constexpr float STEP = 1.0f / 60.0f;
 constexpr float PLAYER_SPEED = 94.0f;
 constexpr float BULLET_SPEED = 185.0f;
-constexpr float FIRE_DELAY = .18f;
+constexpr float FIRE_DELAY = .58f;
+constexpr float ENEMY_SPEED = 34.0f;
+constexpr int PLAYER_MAX_HP = 6;
 constexpr float BODY_HALF = 4.0f;
 constexpr int DUNGEON_START = 1;
 
-enum class Screen { Title, Saves, Hub, Dungeon, Paused };
+enum class Screen { Title, Saves, Hub, Dungeon, Paused, GameOver };
+struct Squib { SDL_FPoint pos{}; int hp = 2; };
+struct Sprite { SDL_Texture* texture=nullptr; SDL_FRect source{}; };
+struct Art { Sprite floor,wall,door,dold,squib,shot; };
 struct Bullet { SDL_FPoint pos{}; SDL_FPoint vel{}; };
 struct SaveSlot { bool exists = false; std::uint64_t seconds = 0; };
 struct Button { std::string text; SDL_FRect bounds{}; float glow = 0; bool enabled = true; };
@@ -34,6 +40,12 @@ struct Game {
     std::array<doldrum::Room, 3> rooms;
     SDL_FPoint player{};
     std::vector<Bullet> bullets;
+    std::array<std::vector<Squib>,3> enemies{};
+    std::array<bool,3> roomsCleared{};
+    int hp = PLAYER_MAX_HP;
+    float invulnerable = 0.0f;
+    Art art{};
+    int menuSelection = 0;
     int roomIndex = 0;
     int activeSlot = -1;
     Screen screen = Screen::Title;
@@ -127,10 +139,12 @@ void resetToHub(Game& g) {
     const auto& sp=g.rooms[0].spawn;
     g.player={(sp.x+.5f)*doldrum::kTileSize,(sp.y+.5f)*doldrum::kTileSize};
     g.bullets.clear();g.shootCooldown=0;g.playSubsecond=0;g.autosaveClock=0;
+    g.hp=PLAYER_MAX_HP;g.invulnerable=0;g.roomsCleared.fill(false);
+    for(auto& enemies:g.enemies)enemies.clear();
 }
 void toTitle(Game& g) {
     saveActive(g);g.activeSlot=-1;g.screen=Screen::Title;
-    g.deleteMode=false;g.deleteChoice=-1;g.bullets.clear();
+    g.deleteMode=false;g.deleteChoice=-1;g.bullets.clear();g.menuSelection=0;
 }
 void openSlot(Game& g,int slot) {
     g.activeSlot=slot;
@@ -152,8 +166,23 @@ bool solidAt(const doldrum::Room& room,float x,float y) {
     return room.isSolid(static_cast<int>(std::floor(x/doldrum::kTileSize)),
                         static_cast<int>(std::floor(y/doldrum::kTileSize)));
 }
+void spawnSquibs(Game& g,int roomIndex) {
+    if(roomIndex==0 || g.roomsCleared[static_cast<size_t>(roomIndex)] || !g.enemies[static_cast<size_t>(roomIndex)].empty())return;
+    const auto& room=g.rooms[static_cast<size_t>(roomIndex)];
+    const auto cells=room.freeTiles({room.spawn});
+    // Select spread-out floor cells, never hardcoded screen coordinates.
+    for(auto it=cells.rbegin();it!=cells.rend() && g.enemies[static_cast<size_t>(roomIndex)].size()<3;++it){
+        const float px=(it->x+0.5f)*doldrum::kTileSize,py=(it->y+0.5f)*doldrum::kTileSize;
+        const float dx=px-g.player.x,dy=py-g.player.y;
+        if(dx*dx+dy*dy<55.0f*55.0f)continue;
+        const auto& selected=g.enemies[static_cast<size_t>(roomIndex)];
+        bool near=false;for(const auto& e:selected){const float xx=e.pos.x-px,yy=e.pos.y-py;if(xx*xx+yy*yy<48.0f*48.0f)near=true;}
+        if(!near)g.enemies[static_cast<size_t>(roomIndex)].push_back({{px,py},2});
+    }
+}
 void changeRoom(Game& g,int room,float x,float y) {
     g.roomIndex=room;g.player={x,y};g.bullets.clear();
+    spawnSquibs(g,room);
 }
 void updateWorld(Game& g,const bool* keys,float dt) {
     auto& room=g.rooms[static_cast<size_t>(g.roomIndex)];
@@ -176,6 +205,7 @@ void updateWorld(Game& g,const bool* keys,float dt) {
     if(g.roomIndex==2 && g.player.x<=13 && room.isDoor(0,yTile)) {
         changeRoom(g,1,W-21,g.player.y);return;
     }
+    g.invulnerable=std::max(0.0f,g.invulnerable-dt);
     g.shootCooldown=std::max(0.0f,g.shootCooldown-dt);
     SDL_FPoint dir{};
     if(keys[SDL_SCANCODE_UP])dir={0,-1};
@@ -188,6 +218,33 @@ void updateWorld(Game& g,const bool* keys,float dt) {
     }
     for(auto& b:g.bullets){b.pos.x+=b.vel.x*dt;b.pos.y+=b.vel.y*dt;}
     std::erase_if(g.bullets,[&](const Bullet& b){return solidAt(room,b.pos.x,b.pos.y);});
+    if(g.roomIndex>0){
+        auto& enemies=g.enemies[static_cast<size_t>(g.roomIndex)];
+        for(auto& enemy:enemies){
+            const float x=g.player.x-enemy.pos.x,y=g.player.y-enemy.pos.y;
+            const float d=std::sqrt(x*x+y*y);
+            if(d>0.001f){
+                const float ex=enemy.pos.x+(x/d)*ENEMY_SPEED*dt;
+                const float ey=enemy.pos.y+(y/d)*ENEMY_SPEED*dt;
+                if(canOccupy(room,ex,enemy.pos.y))enemy.pos.x=ex;
+                if(canOccupy(room,enemy.pos.x,ey))enemy.pos.y=ey;
+            }
+            if(d<11.0f&&g.invulnerable<=0){
+                --g.hp;g.invulnerable=1.0f;
+                if(g.hp<=0){g.screen=Screen::GameOver;g.menuSelection=0;g.bullets.clear();return;}
+            }
+        }
+        std::erase_if(g.bullets,[&](const Bullet& b){
+            for(auto& enemy:enemies){
+                if(enemy.hp<=0)continue;
+                const float x=b.pos.x-enemy.pos.x,y=b.pos.y-enemy.pos.y;
+                if(x*x+y*y<9.0f*9.0f){--enemy.hp;return true;}
+            }
+            return false;
+        });
+        std::erase_if(enemies,[](const Squib& e){return e.hp<=0;});
+        if(enemies.empty())g.roomsCleared[static_cast<size_t>(g.roomIndex)]=true;
+    }
 }
 void addButton(Game& g,std::string label,float x,float y,float w,float h,bool enabled=true) {
     g.buttons.push_back({std::move(label),{x,y,w,h},0,enabled});
@@ -204,10 +261,13 @@ void rebuildButtons(Game& g) {
                                         !g.deleteMode||g.saves[static_cast<size_t>(i)].exists);
         addButton(g,"< BACK",34,165,113,19);
         addButton(g,g.deleteChoice>=0?"CONFIRM DELETE":g.deleteMode?"CANCEL DELETE":"DELETE FILE",151,165,148,19);
+    } else if(g.screen==Screen::GameOver) {
+        addButton(g,"RETURN TO HUB",50,110,220,25);
     } else if(g.screen==Screen::Paused) {
         addButton(g,"CONTINUE",67,86,186,24);
         addButton(g,"QUIT TO MENU",67,123,186,24);
     }
+    g.menuSelection=std::clamp(g.menuSelection,0,std::max(0,static_cast<int>(g.buttons.size())-1));
     for(auto& b:g.buttons)for(const auto& old:previous)
         if(old.text==b.text) {b.glow=old.glow;break;}
 }
@@ -220,8 +280,10 @@ int hoveredButton(const Game& g,float x,float y) {
     return -1;
 }
 void click(Game& g,int id) {
-    if(id<0)return;
-    if(g.screen==Screen::Title) {
+    if(id<0 || id>=static_cast<int>(g.buttons.size()) || !g.buttons[static_cast<size_t>(id)].enabled)return;
+    if(g.screen==Screen::GameOver) {
+        resetToHub(g);
+    } else if(g.screen==Screen::Title) {
         if(id==0) {loadSlots(g);g.screen=Screen::Saves;}
         else if(id==1)g.running=false;
     } else if(g.screen==Screen::Saves) {
@@ -243,13 +305,14 @@ void click(Game& g,int id) {
         if(id==0)g.screen=g.pausedFrom;
         else if(id==1)toTitle(g);
     }
-    rebuildButtons(g);
+    g.menuSelection=0;rebuildButtons(g);
 }
 void update(Game& g,const bool* keys,float dt,float mouseX,float mouseY) {
     g.menuClock+=dt;
+    const int hover=hoveredButton(g,mouseX,mouseY);
     for(size_t i=0;i<g.buttons.size();++i) {
         auto& b=g.buttons[i];
-        const float target=hoveredButton(g,mouseX,mouseY)==static_cast<int>(i)?1.0f:0.0f;
+        const float target=b.enabled && (hover==static_cast<int>(i)||g.menuSelection==static_cast<int>(i))?1.0f:0.0f;
         b.glow=std::clamp(b.glow+(target>b.glow?dt*6.0f:-dt*3.7f),0.0f,1.0f);
     }
     if(g.screen!=Screen::Hub&&g.screen!=Screen::Dungeon)return;
@@ -288,6 +351,42 @@ void drawButtons(SDL_Renderer* ren,const Game& g) {
              static_cast<Uint8>(std::min(255,static_cast<int>(intensity)+7)));
     }
 }
+Sprite loadSprite(SDL_Renderer* renderer,const std::filesystem::path& path){
+    Sprite sprite{};
+    SDL_Surface* surface=IMG_Load(path.string().c_str());
+    if(!surface){std::fprintf(stderr,"Optional art unavailable: %s (%s)\n",path.string().c_str(),SDL_GetError());return sprite;}
+    int left=surface->w,top=surface->h,right=-1,bottom=-1;
+    for(int y=0;y<surface->h;++y)for(int x=0;x<surface->w;++x){
+        Uint8 r=0,g=0,b=0,a=0;
+        if(SDL_ReadSurfacePixel(surface,x,y,&r,&g,&b,&a)&&a>0){
+            left=std::min(left,x);top=std::min(top,y);right=std::max(right,x);bottom=std::max(bottom,y);
+        }
+    }
+    if(right<left){SDL_DestroySurface(surface);return sprite;}
+    sprite.source={static_cast<float>(left),static_cast<float>(top),static_cast<float>(right-left+1),static_cast<float>(bottom-top+1)};
+    sprite.texture=SDL_CreateTextureFromSurface(renderer,surface);
+    SDL_DestroySurface(surface);
+    if(sprite.texture)SDL_SetTextureScaleMode(sprite.texture,SDL_SCALEMODE_NEAREST);
+    return sprite;
+}
+void loadArt(Game& g,SDL_Renderer* renderer,const std::filesystem::path& root){
+    g.art.floor=loadSprite(renderer,root/"backgrounds"/"Floor.png");
+    g.art.wall=loadSprite(renderer,root/"tiles"/"Wall.png");
+    g.art.door=loadSprite(renderer,root/"tiles"/"Door.png");
+    g.art.dold=loadSprite(renderer,root/"characters"/"Dold.png");
+    g.art.squib=loadSprite(renderer,root/"enemies"/"Squib.png");
+    g.art.shot=loadSprite(renderer,root/"projectiles"/"DoldShot.png");
+}
+void freeArt(Art& art){for(auto* s:{&art.floor,&art.wall,&art.door,&art.dold,&art.squib,&art.shot}){if(s->texture)SDL_DestroyTexture(s->texture);s->texture=nullptr;}}
+void sprite(SDL_Renderer* renderer,const Sprite& s,float cx,float bottom,float width,float height){
+    if(!s.texture)return;
+    const SDL_FRect dst{std::round(cx-width*.5f),std::round(bottom-height),width,height};
+    SDL_RenderTexture(renderer,s.texture,&s.source,&dst);
+}
+void entity(SDL_Renderer* renderer,const Sprite& s,float x,float y,float width,float height){
+    // Sprite feet are the simulation position; art extends above the floor.
+    sprite(renderer,s,x,y+6,width,height);
+}
 void world(SDL_Renderer* ren,const Game& g) {
     const auto& room=g.rooms[static_cast<size_t>(g.roomIndex)];
     rect(ren,0,0,W,H,14,18,28);
@@ -295,12 +394,15 @@ void world(SDL_Renderer* ren,const Game& g) {
         const int px=x*doldrum::kTileSize,py=y*doldrum::kTileSize;
         const auto& tile=room.tileAt(x,y);
         if(tile=="A0") {
+            if(g.art.wall.texture){sprite(ren,g.art.wall,static_cast<float>(px+8),static_cast<float>(py+16),16,20);continue;}
             rect(ren,static_cast<float>(px),static_cast<float>(py),16,16,74,78,93);
             rect(ren,static_cast<float>(px+1),static_cast<float>(py+1),14,4,103,108,124);
         }else if(tile=="D0") {
+            if(g.art.door.texture){sprite(ren,g.art.door,static_cast<float>(px+8),static_cast<float>(py+16),16,19);continue;}
             rect(ren,static_cast<float>(px),static_cast<float>(py),16,16,118,82,49);
             rect(ren,static_cast<float>(px+4),static_cast<float>(py+4),8,8,167,125,67);
         }else{
+            if(g.art.floor.texture){sprite(ren,g.art.floor,static_cast<float>(px+8),static_cast<float>(py+16),16,16);continue;}
             const bool alt=(x+y)%2==0;
             rect(ren,static_cast<float>(px),static_cast<float>(py),16,16,
                  alt?42:46,alt?46:50,alt?57:61);
@@ -310,10 +412,34 @@ void world(SDL_Renderer* ren,const Game& g) {
         centered(ren,"HUB",30,1.8f,184,168,132);
         centered(ren,"NORTH DOOR TO DUNGEON",47,.9f,178,178,182);
     }
-    rect(ren,g.player.x-5,g.player.y+4,10,3,23,25,33);
-    rect(ren,g.player.x-5,g.player.y-7,10,12,103,189,158);
-    rect(ren,g.player.x-3,g.player.y-10,6,4,229,209,168);
-    for(const auto& b:g.bullets)rect(ren,b.pos.x-2,b.pos.y-2,4,4,246,194,105);
+    struct DrawEntity{float y;int kind;size_t index;};
+    std::vector<DrawEntity> drawable{{g.player.y,0,0}};
+    const auto& enemies=g.enemies[static_cast<size_t>(g.roomIndex)];
+    for(size_t i=0;i<enemies.size();++i)drawable.push_back({enemies[i].pos.y,1,i});
+    std::sort(drawable.begin(),drawable.end(),[](const auto& a,const auto& b){return a.y<b.y;});
+    for(const auto& d:drawable){
+        if(d.kind==0){
+            if(g.invulnerable>0 && static_cast<int>(g.invulnerable*12)%2==0)continue;
+            rect(ren,g.player.x-5,g.player.y+4,10,3,23,25,33);
+            if(g.art.dold.texture)entity(ren,g.art.dold,g.player.x,g.player.y,19,22);
+            else{rect(ren,g.player.x-5,g.player.y-7,10,12,103,189,158);rect(ren,g.player.x-3,g.player.y-10,6,4,229,209,168);}
+        }else{
+            const auto& e=enemies[d.index];
+            rect(ren,e.pos.x-5,e.pos.y+4,10,3,23,25,33);
+            if(g.art.squib.texture)entity(ren,g.art.squib,e.pos.x,e.pos.y,18,18);
+            else rect(ren,e.pos.x-6,e.pos.y-8,12,13,201,96,128);
+        }
+    }
+    for(const auto& b:g.bullets){
+        if(g.art.shot.texture)sprite(ren,g.art.shot,b.pos.x,b.pos.y+5,10,10);
+        else rect(ren,b.pos.x-3,b.pos.y-3,6,6,246,194,105);
+    }
+    // Player health in half-heart increments; temporary rectangular HUD.
+    for(int i=0;i<PLAYER_MAX_HP/2;++i){
+        const int left=std::clamp(g.hp-2*i,0,2);
+        rect(ren,5.0f+i*18,5,15,9,35,25,35,216);
+        if(left>0)rect(ren,7.0f+i*18,7,static_cast<float>(left*5+1),5,221,71,93);
+    }
 }
 void render(SDL_Renderer* ren,const Game& g) {
     SDL_SetRenderDrawColor(ren,11,13,22,255);SDL_RenderClear(ren);
@@ -337,6 +463,11 @@ void render(SDL_Renderer* ren,const Game& g) {
         if(g.deleteChoice>=0)centered(ren,"DELETE SELECTED SAVE?",151,1.0f,235,143,134);
     }else{
         world(ren,g);
+        if(g.screen==Screen::GameOver){
+            rect(ren,0,0,W,H,7,9,16,226);
+            centered(ren,"YOU DIED",43,3.1f,235,126,137);
+            drawButtons(ren,g);
+        }
         if(g.screen==Screen::Paused){
             rect(ren,0,0,W,H,7,9,16,218);
             centered(ren,"PAUSED",43,3.1f,216,205,177);
@@ -350,7 +481,7 @@ void render(SDL_Renderer* ren,const Game& g) {
 int main(int,char**) {
     if(!SDL_Init(SDL_INIT_VIDEO)){std::fprintf(stderr,"SDL_Init failed: %s\n",SDL_GetError());return 1;}
     SDL_Window* window=nullptr;SDL_Renderer* renderer=nullptr;
-    if(!SDL_CreateWindowAndRenderer("Doldrum - Build 003",960,576,SDL_WINDOW_RESIZABLE,&window,&renderer)){
+    if(!SDL_CreateWindowAndRenderer("Doldrum - Build 004",960,576,SDL_WINDOW_RESIZABLE,&window,&renderer)){
         std::fprintf(stderr,"Window creation failed: %s\n",SDL_GetError());SDL_Quit();return 1;
     }
     SDL_SetRenderLogicalPresentation(renderer,W,H,SDL_LOGICAL_PRESENTATION_LETTERBOX);
@@ -368,6 +499,7 @@ int main(int,char**) {
     }
     char* pref=SDL_GetPrefPath("MorseLoc","Doldrum");
     if(pref){g.saveDir=pref;SDL_free(pref);}else g.saveDir="saves";
+    loadArt(g,renderer,std::filesystem::path(SDL_GetBasePath())/"assets");
     loadSlots(g);rebuildButtons(g);
     auto previous=SDL_GetPerformanceCounter();const auto freq=SDL_GetPerformanceFrequency();double accumulator=0;
     while(g.running){
@@ -378,6 +510,19 @@ int main(int,char**) {
                 if(event.key.scancode==SDL_SCANCODE_F){
                     const bool desired=!g.fullScreen;
                     if(SDL_SetWindowFullscreen(window,desired))g.fullScreen=desired;
+                }else if((g.screen==Screen::Title||g.screen==Screen::Saves||g.screen==Screen::Paused||g.screen==Screen::GameOver)&&
+                         (event.key.scancode==SDL_SCANCODE_UP||event.key.scancode==SDL_SCANCODE_DOWN||
+                          event.key.scancode==SDL_SCANCODE_LEFT||event.key.scancode==SDL_SCANCODE_RIGHT)){
+                    const int delta=(event.key.scancode==SDL_SCANCODE_UP||event.key.scancode==SDL_SCANCODE_LEFT)?-1:1;
+                    if(!g.buttons.empty()){
+                        const int count=static_cast<int>(g.buttons.size());
+                        for(int i=0;i<count;++i){g.menuSelection=(g.menuSelection+delta+count)%count;
+                            if(g.buttons[static_cast<size_t>(g.menuSelection)].enabled)break;}
+                    }
+                }else if((event.key.scancode==SDL_SCANCODE_RETURN||event.key.scancode==SDL_SCANCODE_KP_ENTER)&&
+                         (g.screen==Screen::Title||g.screen==Screen::Saves||g.screen==Screen::Paused||g.screen==Screen::GameOver)){
+                    if(g.menuSelection>=0&&g.menuSelection<static_cast<int>(g.buttons.size())&&
+                       g.buttons[static_cast<size_t>(g.menuSelection)].enabled)click(g,g.menuSelection);
                 }else if(event.key.scancode==SDL_SCANCODE_ESCAPE){
                     if(g.screen==Screen::Hub||g.screen==Screen::Dungeon){
                         saveActive(g);g.pausedFrom=g.screen;g.screen=Screen::Paused;
@@ -385,6 +530,11 @@ int main(int,char**) {
                     else if(g.screen==Screen::Saves){g.deleteMode=false;g.deleteChoice=-1;g.screen=Screen::Title;}
                     rebuildButtons(g);
                 }
+            }
+            if(event.type==SDL_EVENT_MOUSE_MOTION&& !g.buttons.empty()){
+                float mx=event.motion.x,my=event.motion.y;
+                SDL_RenderCoordinatesFromWindow(renderer,mx,my,&mx,&my);
+                const int idx=hoveredButton(g,mx,my);if(idx>=0)g.menuSelection=idx;
             }
             if(event.type==SDL_EVENT_MOUSE_BUTTON_DOWN&&event.button.button==SDL_BUTTON_LEFT){
                 float mx=event.button.x,my=event.button.y;
@@ -397,10 +547,10 @@ int main(int,char**) {
         previous=now;accumulator+=elapsed;
         float mx=0,my=0;SDL_GetMouseState(&mx,&my);SDL_RenderCoordinatesFromWindow(renderer,mx,my,&mx,&my);
         const bool* keys=SDL_GetKeyboardState(nullptr);
-        while(accumulator>=STEP){update(g,keys,STEP,mx,my);accumulator-=STEP;}
+        while(accumulator>=STEP){const Screen before=g.screen;update(g,keys,STEP,mx,my);if(g.screen!=before)rebuildButtons(g);accumulator-=STEP;}
         render(renderer,g);
         SDL_Delay(1);
     }
     saveActive(g);
-    SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();return 0;
+    freeArt(g.art);SDL_DestroyRenderer(renderer);SDL_DestroyWindow(window);SDL_Quit();return 0;
 }
