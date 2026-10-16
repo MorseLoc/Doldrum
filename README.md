@@ -1,60 +1,27 @@
-# Doldrum | Build 002
+# Doldrum Build 003: Menus and save slots
 
-C++20 + SDL3 dungeon-crawler prototype for Visual Studio CMake.
+This is an **overlay update** for the existing Build 002 GitHub repository. Copy these files over the existing project, preserving the existing `src/world/Room.cpp`, `src/world/Room.hpp`, `data/rooms/room_start.txt`, `data/rooms/room_east.txt`, and `CMakePresets.json`.
 
-## Run
-
-1. Open this folder in Visual Studio via **File > Open > Folder**.
-2. Select the `windows-debug` CMake configure preset, and then the Doldrum startup target.
-3. Press **F5**. On first configure, CMake may need to download SDL3.
-4. Edit `data/rooms/room_start.txt` and rebuild to change the starting room.
-
-If replacing Build 001 in your local repository, copy the contents of this folder over the old ones (keep your `.git` directory), then commit the changes. Build results in `out/` are ignored.
+## Features
+- Animated block-letter DOLDRUM title, light-up / fade UI buttons and mouse support
+- Main Menu: Play Game, Quit, F fullscreen toggle
+- Three persistent save slots and playtime counters
+- Empty slot creates a new save, existing slot loads the hub
+- Two-step deletion: DELETE FILE, then choose a slot, then CONFIRM DELETE; BACK cancels
+- Hub TXT room with north doorway into the existing two-room dungeon
+- Esc in hub or dungeon opens pause overlay; Resume and Quit to Menu
+- Play time autosaves approximately every 10 seconds and when changing screens / quitting
+- Organized folders under assets/ to begin adding pixel art
 
 ## Controls
+WASD move; arrow keys shoot; mouse hover / click menu buttons; Esc pause/back; F fullscreen.
 
-- WASD: movement (normalized diagonals)
-- Arrow keys: shoot in four directions
-- Walk through the **gold door on the east side** of the starting room to reach the second room; go back through its west door to return.
-- Escape: exit
+## Save location
+The game uses SDL_GetPrefPath("MorseLoc", "Doldrum") to save slot_1.txt, slot_2.txt, slot_3.txt to a writable user application data directory. These files are not included in GitHub. Save format is a small versioned prototype text format, designed to be expanded later.
 
-## Room TXT format
+## Working with your GitHub repo
+Open the existing Doldrum project folder in Visual Studio. Copy the overlay files in, allow CMake to reconfigure, build and run. **Do not delete the existing src/world or original data/rooms files.** Commit/push after confirming it compiles and behaves as expected.
 
-Every room is a 20-wide by 12-high grid, with one 16x16 logical pixel tile per cell. Example:
-
-```text
-ROOM example_id
-SIZE 20 12
-DOORS EAST
-TILES
-A0 A0 ... (20 entries total)
-... (12 rows total)
-```
-
-Tiles:
-
-- `A0`: solid wall
-- `A1`: walkable floor
-- `D0`: passable door tile, usually on a room boundary
-- `P`: player spawn, exactly once per room; internally converted to floor
-
-`DOORS` declares one or more of `NORTH EAST SOUTH WEST`. The loader ensures a declared doorway has a corresponding `D0` on the relevant edge. The initial two rooms are explicitly connected in code; procedural room connectivity comes in Build 004.
-
-The `Room` model exposes `walkable` coordinates and `freeTiles(occupied)` for future bank, enemy, and item placement. For future content, extend tile behavior in one location rather than putting gameplay entities into map token IDs.
-
-## Technical notes
-
-- Room parsing is in `src/world/Room.cpp`, separate from SDL and rendering.
-- CMake copies `data/` beside the game executable after each build. Rooms load relative to `SDL_GetBasePath()`.
-- Both the player and bullets collide with solid walls. The collision shape remains a simple placeholder.
-- The room loader rejects invalid sizes, missing spawn points, malformed rows, duplicate spawns, unknown tile codes, and missing declared door tiles.
-- Build 002 focuses on room systems, not procedural generation, enemy encounters, or final graphics.
-
-## Optional parser sanity test
-
-On a system with g++:
-
-```bash
-g++ -std=c++20 -Isrc tests/room_test.cpp src/world/Room.cpp -o room_test
-./room_test data/rooms/room_start.txt data/rooms/room_east.txt
-```
+## Pixel-art folders
+assets/characters, enemies, tiles, props, projectiles, items, cards, ui, fonts, effects, backgrounds.
+The temporary bitmap UI font and dungeon shapes are programmatic placeholders. PNG asset loading and sprite animations will be added when art is ready.
