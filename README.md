@@ -1,42 +1,60 @@
-# Doldrum
+# Doldrum | Build 002
 
-A C++20 / SDL3 roguelike prototype built with CMake and Visual Studio.
+C++20 + SDL3 dungeon-crawler prototype for Visual Studio CMake.
 
-## Requirements
-- Windows 10/11 and Visual Studio 2022 or newer with **Desktop development with C++** and CMake support.
-- Git installed and internet access for initial SDL3 download (unless SDL3 is already installed).
+## Run
 
-## Open and run
-1. Extract the folder and open Visual Studio.
-2. Select **File > Open > Folder...** and select this directory (the one containing `CMakeLists.txt`).
-3. Select the `windows-debug` configure preset, let CMake finish, and choose the **Doldrum** startup target.
-4. Build and run with F5 or Debug > Start Debugging.
+1. Open this folder in Visual Studio via **File > Open > Folder**.
+2. Select the `windows-debug` CMake configure preset, and then the Doldrum startup target.
+3. Press **F5**. On first configure, CMake may need to download SDL3.
+4. Edit `data/rooms/room_start.txt` and rebuild to change the starting room.
 
-If Visual Studio does not detect Git, install Git for Windows. First CMake configure can take longer because it fetches and builds SDL3. If using an installed SDL3, make sure CMake can find its package.
+If replacing Build 001 in your local repository, copy the contents of this folder over the old ones (keep your `.git` directory), then commit the changes. Build results in `out/` are ignored.
 
-### Controls
-- **WASD**: move (diagonal speed normalized)
-- **Arrow keys**: shoot (four directions, held fire)
-- **Esc**: exit
+## Controls
 
-### Command-line alternative
-From a Developer PowerShell with CMake and Ninja:
-```powershell
-cmake --preset windows-debug
-cmake --build --preset windows-debug
+- WASD: movement (normalized diagonals)
+- Arrow keys: shoot in four directions
+- Walk through the **gold door on the east side** of the starting room to reach the second room; go back through its west door to return.
+- Escape: exit
+
+## Room TXT format
+
+Every room is a 20-wide by 12-high grid, with one 16x16 logical pixel tile per cell. Example:
+
+```text
+ROOM example_id
+SIZE 20 12
+DOORS EAST
+TILES
+A0 A0 ... (20 entries total)
+... (12 rows total)
 ```
 
-## GitHub setup
-Create an empty private or public repository named `Doldrum` on GitHub (do not initialize with README). Open a terminal at this directory and run:
-```powershell
-git init
-git add .
-git commit -m "Initial Doldrum CMake SDL3 prototype"
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/Doldrum.git
-git push -u origin main
-```
-GitHub authentication may open a browser prompt. Do not paste access tokens into chat.
+Tiles:
 
-## Current status
-Build 001: test arena, free movement and four-directional projectile shooting. There are no room TXT loaders, enemies, card system, saves, or final art yet. The preview uses simple rectangles deliberately. See `docs/ROADMAP.md` for the next step.
+- `A0`: solid wall
+- `A1`: walkable floor
+- `D0`: passable door tile, usually on a room boundary
+- `P`: player spawn, exactly once per room; internally converted to floor
+
+`DOORS` declares one or more of `NORTH EAST SOUTH WEST`. The loader ensures a declared doorway has a corresponding `D0` on the relevant edge. The initial two rooms are explicitly connected in code; procedural room connectivity comes in Build 004.
+
+The `Room` model exposes `walkable` coordinates and `freeTiles(occupied)` for future bank, enemy, and item placement. For future content, extend tile behavior in one location rather than putting gameplay entities into map token IDs.
+
+## Technical notes
+
+- Room parsing is in `src/world/Room.cpp`, separate from SDL and rendering.
+- CMake copies `data/` beside the game executable after each build. Rooms load relative to `SDL_GetBasePath()`.
+- Both the player and bullets collide with solid walls. The collision shape remains a simple placeholder.
+- The room loader rejects invalid sizes, missing spawn points, malformed rows, duplicate spawns, unknown tile codes, and missing declared door tiles.
+- Build 002 focuses on room systems, not procedural generation, enemy encounters, or final graphics.
+
+## Optional parser sanity test
+
+On a system with g++:
+
+```bash
+g++ -std=c++20 -Isrc tests/room_test.cpp src/world/Room.cpp -o room_test
+./room_test data/rooms/room_start.txt data/rooms/room_east.txt
+```

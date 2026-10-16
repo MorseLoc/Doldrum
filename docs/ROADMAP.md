@@ -22,3 +22,13 @@ Angled 2D pixel-art roguelike with projectile-based combat and hybrid procedural
 
 ## Build 001 scope
 Visual placeholder only. Movement, arrows firing, SDL3 input, 60 Hz fixed update. No collisions except arena bounds and bullet despawn.
+
+## Build 002 completed
+- Separate TXT room parser and world model.
+- 20x12 tile grid with A0 walls, A1 floor, D0 doors, and P spawn marker.
+- Validated map loading, floor coordinate registry, occupied-space filtering.
+- Tile collision for player and bullets, and two connected hand-authored rooms.
+- Runtime copying of editable room data by CMake.
+
+## Next: Build 003
+- Enemy model, enemy/projectile collisions, health, basic attacks and persistent cleared state for revisited rooms.

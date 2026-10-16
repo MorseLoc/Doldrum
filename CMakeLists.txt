@@ -19,7 +19,13 @@ if(NOT TARGET SDL3::SDL3)
     FetchContent_MakeAvailable(SDL3)
 endif()
 
-add_executable(Doldrum src/main.cpp)
+add_executable(Doldrum src/main.cpp src/world/Room.cpp)
+target_include_directories(Doldrum PRIVATE src)
+add_custom_command(TARGET Doldrum POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_CURRENT_SOURCE_DIR}/data
+        $<TARGET_FILE_DIR:Doldrum>/data
+    VERBATIM)
 target_link_libraries(Doldrum PRIVATE SDL3::SDL3)
 
 if(MSVC)
