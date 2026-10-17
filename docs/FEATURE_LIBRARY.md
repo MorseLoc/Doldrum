@@ -22,6 +22,11 @@ This is the **human-readable source-of-truth index** for Doldrum features. A mat
 | F012 | Save System | `save/SaveSystem.cpp` |
 | F013 | World Flow | `world/WorldSystem.cpp` |
 | F014 | Application | `main.cpp` |
+| F015 | Loot | `world/Loot.cpp` |
+| F016 | Inventory HUD | `render/Renderer.cpp` |
+| F017 | Bank | `world/Bank.cpp`, `save/SaveSystem.cpp` |
+| F018 | Gauntlet | `world/WorldSystem.cpp` |
+| F019 | Squib Navigation | `entities/SquibNavigation.cpp` |
 
 ## Detailed feature entries
 
@@ -122,3 +127,66 @@ This is the **human-readable source-of-truth index** for Doldrum features. A mat
 ## Architecture note
 
 The code is currently **modular C++ source**, not independently built DLLs or static libraries. `core/Game.hpp` still contains shared state. The feature registry is an index for navigation and documentation, **not** a factory or gameplay plugin loader. Future cards can maintain separate stable string IDs and reference feature IDs in developer documentation.
+
+## Build 006 additions
+
+### F015 — Loot
+- **What:** A Squib rolls a 5% total drop chance on defeat; coin, bomb, key, half heart each has a 25% share.
+- **How:** Small deterministic xorshift PRNG; pickup on proximity; heart restores 1 HP up to cap.
+- **Where:** `src/world/Loot.cpp`; called from Squib and WorldSystem.
+
+### F016 — Inventory HUD
+- **What:** Counts for carried coins, bombs, keys and permanent bank balance.
+- **How:** Screen-space labels; HUD does not scroll with camera.
+- **Where:** `src/render/Renderer.cpp`; state in `src/core/Game.hpp`.
+
+### F017 — Bank
+- **What:** One bank box in the hub and another in the gauntlet room. Press E within 25 px to deposit all carried coins.
+- **How:** Carried coins are removed, permanent save balance increases, save format version 2 stores the balance. Version 1 saves load with zero balance.
+- **Where:** `src/world/Bank.cpp`, `src/save/SaveSystem.cpp`.
+
+### F018 — Gauntlet
+- **What:** Nine Squibs in the large room, a bank activates after all are defeated.
+- **How:** Encounter placement uses room floor coordinates. Cleared status persists during that run.
+- **Where:** `src/world/WorldSystem.cpp`, `src/world/Bank.cpp`.
+
+### F019 — Squib Navigation
+- **What:** Squibs route around walls, follow corridors and avoid occupying each other's space.
+- **How:** BFS distance field from the player's tile. Each enemy selects an adjacent tile with a lower distance; moves with axis-separated collision and distance-based enemy separation.
+- **Where:** `src/entities/SquibNavigation.cpp`, `src/entities/Squib.cpp`.
+
+
+## F020 Zigzag Boss
+- **Implementation:** `src/entities/Boss.cpp`; `data/rooms/room_boss.txt`.
+- **Behavior:** One 64x64 boss (temporary Squib art), 64 hit points. Horizontal triangle-wave zigzag with top/bottom sweeps in a 44x28 room, 3 aimed projectile volley every ~1.7 seconds and up to three Squibs every 30 seconds (12 minion cap). Player shots deal 1 HP. Defeat remains for the current run.
+- **Dependencies:** F005 Room, F007 Squib, F008 Projectile, F009 Health, F013 World Flow.
+
+## F021 Enemy Projectiles
+- **Implementation:** `src/entities/Boss.cpp`, `src/render/Renderer.cpp`.
+- **Behavior:** Separate enemy projectile list, independent of player bullets; collisions with player and walls, one HP damage subject to existing invulnerability. Cleared on boss defeat and room transition.
+- **Dependencies:** F009 Health, F020 Boss, F005 Room.
+
+## F016 Inventory HUD (revised)
+- **Implementation:** `src/ui/InventoryHUD.cpp`.
+- **Behavior:** Icon-and-number counters for coins, bombs and keys directly below the HP bar. No persistent bank balance shown in the HUD.
+
+## F017 Bank (revised)
+- **Implementation:** `src/world/Bank.cpp`, `src/render/Renderer.cpp`.
+- **Behavior:** Touch to auto-deposit carried coins whenever available and unlocked; draws persistent balance over the bank prop. Bank balances remain per save slot.
+
+
+## F022 Tutorial Deck Shop
+- **Owns:** `src/world/Shop.cpp`, persistent status in `src/save/SaveSystem.cpp`.
+- **Behavior:** A display stand spawns in the hub. Press `E` nearby to spend **one banked coin** to unlock the Tutorial Deck. A deck can only be purchased once per profile. No tutorial cards are available yet. Saved as a v3 slot flag; older save files v1/v2 load.
+- **Depends on:** Bank F017, Save F012, World F013, Renderer F010.
+
+## F023 Player Animation
+- **Owns:** `render/Renderer.cpp` (composition and asset load), `entities/Player.cpp` (walk phase), `combat/Projectile.cpp` (fire pulse).
+- **Art:** Optional `DoldWalk1.png`, `DoldWalk2.png` for leg motion and transparent `DoldFire1.png`, `DoldFire2.png` for spark overlays. Every image uses the same 16x16 logical canvas; overlays blend above legs. Idle `Dold.png` fallback. Transparent pixels stay transparent.
+- **Timing:** Walk alternates every 0.18 seconds while moving, firing layers 0.12-second frames after shooting. Shooting and walking are independent.
+
+### F015/F016/F017/F020 refinements (Build 008)
+- F015: Loot roll 0-19 of 100 drops one item, each of 4 types occupies five outcomes: 5% each, 20% total.
+- F016: Coin, bomb, key tiny icons now stack vertically beneath the health bar at top-left.
+- F017: Bank props physically block player movement; the proximity-based automatic deposit works against the outside of the box.
+- F020: Boss collider blocks player movement while alive, independently of projectile hit detection and contact damage.

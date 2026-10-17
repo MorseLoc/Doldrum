@@ -6,7 +6,7 @@ int main(int,char**) {
     using namespace doldrum_game;
     if(!SDL_Init(SDL_INIT_VIDEO)){std::fprintf(stderr,"SDL_Init failed: %s\n",SDL_GetError());return 1;}
     SDL_Window* window=nullptr;SDL_Renderer* renderer=nullptr;
-    if(!SDL_CreateWindowAndRenderer("Doldrum - Build 005",960,576,SDL_WINDOW_RESIZABLE,&window,&renderer)){
+    if(!SDL_CreateWindowAndRenderer("Doldrum - Build 008",960,576,SDL_WINDOW_RESIZABLE,&window,&renderer)){
         std::fprintf(stderr,"Window creation failed: %s\n",SDL_GetError());SDL_Quit();return 1;
     }
     SDL_SetRenderLogicalPresentation(renderer,W,H,SDL_LOGICAL_PRESENTATION_LETTERBOX);
@@ -17,6 +17,7 @@ int main(int,char**) {
         g.rooms[0]=doldrum::loadRoom((root/"room_hub.txt").string());
         g.rooms[1]=doldrum::loadRoom((root/"room_start.txt").string());
         g.rooms[2]=doldrum::loadRoom((root/"room_large.txt").string());
+        g.rooms[3]=doldrum::loadRoom((root/"room_boss.txt").string());
     }catch(const std::exception& ex){
         std::fprintf(stderr,"Room loading failed: %s\n",ex.what());
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,"Doldrum room error",ex.what(),window);
@@ -32,7 +33,9 @@ int main(int,char**) {
         while(SDL_PollEvent(&event)){
             if(event.type==SDL_EVENT_QUIT){saveActive(g);g.running=false;}
             if(event.type==SDL_EVENT_KEY_DOWN && !event.key.repeat){
-                if(event.key.scancode==SDL_SCANCODE_F){
+                if(event.key.scancode==SDL_SCANCODE_E && g.screen==Screen::Hub){
+                    interactShop(g);
+                }else if(event.key.scancode==SDL_SCANCODE_F){
                     const bool desired=!g.fullScreen;
                     if(SDL_SetWindowFullscreen(window,desired))g.fullScreen=desired;
                 }else if((g.screen==Screen::Title||g.screen==Screen::Saves||g.screen==Screen::Paused||g.screen==Screen::GameOver)&&

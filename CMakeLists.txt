@@ -35,9 +35,15 @@ add_executable(Doldrum
     src/core/AppSystem.cpp
     src/world/Room.cpp
     src/world/WorldSystem.cpp
+    src/world/Shop.cpp
     src/world/Tiles.cpp
     src/entities/Player.cpp
     src/entities/Squib.cpp
+    src/entities/SquibNavigation.cpp
+    src/entities/Boss.cpp
+    src/ui/InventoryHUD.cpp
+    src/world/Loot.cpp
+    src/world/Bank.cpp
     src/combat/Projectile.cpp
     src/render/DrawUtils.cpp
     src/render/Renderer.cpp

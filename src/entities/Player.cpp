@@ -24,7 +24,10 @@ void movePlayer(Game& g,const bool* keys,float dt) {
     if(len>0){dx/=len;dy/=len;}
     const float nx=g.player.x+dx*PLAYER_SPEED*dt;
     const float ny=g.player.y+dy*PLAYER_SPEED*dt;
-    if(canOccupy(room,nx,g.player.y))g.player.x=nx;
-    if(canOccupy(room,g.player.x,ny))g.player.y=ny;
+    g.walking=len>0.f;
+    if(g.walking)g.walkingClock+=dt;
+    else g.walkingClock=0.f;
+    if(canOccupy(room,nx,g.player.y)&&!bankBlocks(g,g.roomIndex,nx,g.player.y)&&!bossBlocks(g,nx,g.player.y))g.player.x=nx;
+    if(canOccupy(room,g.player.x,ny)&&!bankBlocks(g,g.roomIndex,g.player.x,ny)&&!bossBlocks(g,g.player.x,ny))g.player.y=ny;
 }
 } // namespace doldrum_game

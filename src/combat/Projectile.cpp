@@ -15,6 +15,8 @@ void fireAndAdvanceShots(Game& g,const bool* keys,float dt){
     else if(keys[SDL_SCANCODE_RIGHT])dir={1,0};
     if((dir.x!=0||dir.y!=0)&&g.shootCooldown<=0) {
         g.bullets.push_back({g.player,{dir.x*BULLET_SPEED,dir.y*BULLET_SPEED}});
+        g.lastFiringDirection=dir;
+        g.firingClock=.24f;
         g.shootCooldown=FIRE_DELAY;
     }
     for(auto& b:g.bullets){b.pos.x+=b.vel.x*dt;b.pos.y+=b.vel.y*dt;}

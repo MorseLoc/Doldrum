@@ -15,7 +15,13 @@ void loadSlots(Game& g) {
         g.saves[static_cast<size_t>(i)]={};
         std::ifstream in(slotPath(g,i));
         int version=0;std::uint64_t secs=0;
-        if(in && (in>>version>>secs) && version==1) g.saves[static_cast<size_t>(i)]={true,secs};
+        if(in && (in>>version>>secs) && (version==1||version==2||version==3)) {
+            int balance=0;
+            if(version>=2 && !(in>>balance)) continue;
+            int owned=0;
+            if(version>=3 && !(in>>owned)) continue;
+            g.saves[static_cast<size_t>(i)]={true,secs,std::max(0,balance),owned!=0};
+        }
     }
 }
 void saveActive(Game& g) {
@@ -23,7 +29,12 @@ void saveActive(Game& g) {
     std::error_code error;
     std::filesystem::create_directories(g.saveDir,error);
     std::ofstream out(slotPath(g,g.activeSlot),std::ios::trunc);
-    if(out) out<<1<<" "<<g.saves[static_cast<size_t>(g.activeSlot)].seconds<<"\n";
+    if(out) {
+        auto& slot=g.saves[static_cast<size_t>(g.activeSlot)];
+        slot.bankBalance=g.bankBalance;
+        slot.tutorialDeckOwned=g.tutorialDeckOwned;
+        out<<3<<" "<<slot.seconds<<" "<<slot.bankBalance<<" "<<(slot.tutorialDeckOwned?1:0)<<"\n";
+    }
     else std::fprintf(stderr,"Could not save slot %d\n",g.activeSlot+1);
 }
 void resetToHub(Game& g) {
@@ -32,8 +43,15 @@ void resetToHub(Game& g) {
     g.player={(sp.x+.5f)*doldrum::kTileSize,(sp.y+.5f)*doldrum::kTileSize};
     g.bullets.clear();g.shootCooldown=0;g.playSubsecond=0;g.autosaveClock=0;
     g.hp=PLAYER_MAX_HP;g.invulnerable=0;g.roomsCleared.fill(false);
+    g.coins=0;g.bombs=0;g.keys=0;g.bankMessage.clear();g.bankMessageTimer=0;
+    g.navigation.clear();g.navigationRoom=-1;g.navigationTarget=-1;
+    for(auto& loot:g.loot)loot.clear();
+    setupBanks(g);
+    setupShop(g);
     updateCamera(g);
     for(auto& enemies:g.enemies)enemies.clear();
+    g.enemyShots.clear();
+    resetBoss(g);
 }
 void toTitle(Game& g) {
     saveActive(g);g.activeSlot=-1;g.screen=Screen::Title;
@@ -41,9 +59,13 @@ void toTitle(Game& g) {
 }
 void openSlot(Game& g,int slot) {
     g.activeSlot=slot;
+    g.bankBalance=g.saves[static_cast<size_t>(slot)].bankBalance;
+    g.tutorialDeckOwned=g.saves[static_cast<size_t>(slot)].tutorialDeckOwned;
     if(!g.saves[static_cast<size_t>(slot)].exists) {
         g.saves[static_cast<size_t>(slot)]={true,0};saveActive(g);
     }
+    g.bankBalance=g.saves[static_cast<size_t>(slot)].bankBalance;
+    g.tutorialDeckOwned=g.saves[static_cast<size_t>(slot)].tutorialDeckOwned;
     resetToHub(g);
 }
 

@@ -1,0 +1,12 @@
+DOLDRUM ANIMATION ART - optional files, all PNG with transparency
+Dold.png       Idle (existing file)
+DoldWalk1.png  Walking pose: legs raised frame
+DoldWalk2.png  Walking pose: legs lowered frame
+DoldFire1.png  Transparent sparks overlay frame 1
+DoldFire2.png  Transparent sparks overlay frame 2
+
+Each image should share the SAME canvas/alignment. Walk and fire animation frames preserve their FULL image canvas, then fit it to
+16x16. Keep their image dimensions and alignment identical so sparks stay aligned.
+Idle Dold.png still uses legacy alpha-cropping; create matching movement poses.
+No new PNGs are included in this build. Missing optional animations fall back to idle.
+Walk frames are used only while moving; fire overlays render over either walk or idle.
