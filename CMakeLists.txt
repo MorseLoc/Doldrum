@@ -14,29 +14,36 @@ endif()
 find_package(SDL3_image CONFIG QUIET)
 if(NOT TARGET SDL3_image::SDL3_image)
     include(FetchContent)
-
-    # Doldrum uses PNG artwork.
-# Disable unnecessary image decoders and their dependencies.
-set(SDLIMAGE_AVIF OFF CACHE BOOL "" FORCE)
-set(SDLIMAGE_WEBP OFF CACHE BOOL "" FORCE)
-set(SDLIMAGE_JXL OFF CACHE BOOL "" FORCE)
-set(SDLIMAGE_TIF OFF CACHE BOOL "" FORCE)
-
-# Keep PNG support enabled.
-set(SDLIMAGE_PNG ON CACHE BOOL "" FORCE)
-
     FetchContent_Declare(SDL3_image
         GIT_REPOSITORY https://github.com/libsdl-org/SDL_image.git
         GIT_TAG release-3.2.0
         GIT_SHALLOW TRUE
     )
     set(SDLIMAGE_VENDORED ON CACHE BOOL "" FORCE)
+    set(SDLIMAGE_AVIF OFF CACHE BOOL "" FORCE)
+    set(SDLIMAGE_WEBP OFF CACHE BOOL "" FORCE)
+    set(SDLIMAGE_JXL OFF CACHE BOOL "" FORCE)
+    set(SDLIMAGE_TIF OFF CACHE BOOL "" FORCE)
+    set(SDLIMAGE_PNG ON CACHE BOOL "" FORCE)
     set(SDLIMAGE_SAMPLES OFF CACHE BOOL "" FORCE)
     set(SDLIMAGE_TESTS OFF CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(SDL3_image)
 endif()
 
-add_executable(Doldrum src/main.cpp src/world/Room.cpp)
+add_executable(Doldrum
+    src/main.cpp
+    src/core/AppSystem.cpp
+    src/world/Room.cpp
+    src/world/WorldSystem.cpp
+    src/world/Tiles.cpp
+    src/entities/Player.cpp
+    src/entities/Squib.cpp
+    src/combat/Projectile.cpp
+    src/render/DrawUtils.cpp
+    src/render/Renderer.cpp
+    src/save/SaveSystem.cpp
+    src/ui/MenuSystem.cpp
+    src/ui/PixelFont.cpp)
 target_include_directories(Doldrum PRIVATE src)
 target_link_libraries(Doldrum PRIVATE SDL3::SDL3 SDL3_image::SDL3_image)
 add_custom_command(TARGET Doldrum POST_BUILD

@@ -5,8 +5,8 @@
 #include <vector>
 
 namespace doldrum {
-constexpr int kRoomWidth = 20;
-constexpr int kRoomHeight = 12;
+constexpr int kRoomWidth = 20; // legacy default for new room templates
+constexpr int kRoomHeight = 12; // legacy default for new room templates
 constexpr int kTileSize = 16;
 
 enum class Direction { North = 0, East = 1, South = 2, West = 3 };
@@ -15,7 +15,9 @@ struct GridPoint { int x = 0; int y = 0; };
 
 struct Room {
     std::string id;
-    std::array<std::string, kRoomWidth * kRoomHeight> tiles{};
+    int width = kRoomWidth;
+    int height = kRoomHeight;
+    std::vector<std::string> tiles;
     std::array<bool, 4> doors{};
     GridPoint spawn{10, 6};
     std::vector<GridPoint> walkable;

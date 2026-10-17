@@ -1,4 +1,5 @@
 #include "world/Room.hpp"
+#include "world/Tiles.hpp"
 
 #include <algorithm>
 #include <fstream>
@@ -20,12 +21,12 @@ std::string key(int x, int y) { return std::to_string(x) + ":" + std::to_string(
 }
 
 bool Room::inBounds(int x, int y) const {
-    return x >= 0 && x < kRoomWidth && y >= 0 && y < kRoomHeight;
+    return x >= 0 && x < width && y >= 0 && y < height;
 }
 
 const std::string& Room::tileAt(int x, int y) const {
     static const std::string outside = "A0";
-    return inBounds(x, y) ? tiles[static_cast<size_t>(y * kRoomWidth + x)] : outside;
+    return inBounds(x, y) ? tiles[static_cast<size_t>(y * width + x)] : outside;
 }
 
 bool Room::isDoor(int x, int y) const { return tileAt(x, y) == "D0"; }
@@ -33,7 +34,7 @@ bool Room::isDoor(int x, int y) const { return tileAt(x, y) == "D0"; }
 bool Room::isSolid(int x, int y) const {
     // Unrecognized codes intentionally block movement until their behavior is registered.
     const auto& tile = tileAt(x, y);
-    return tile != "A1" && tile != "D0";
+    return !tileWalkable(tile);
 }
 
 std::vector<GridPoint> Room::freeTiles(const std::vector<GridPoint>& occupied) const {
@@ -70,8 +71,9 @@ Room loadRoom(const std::string& path) {
             hasId = true;
         } else if (token == "SIZE") {
             int w = 0, h = 0;
-            if (!(stream >> w >> h) || w != kRoomWidth || h != kRoomHeight || hasSize)
-                fail("SIZE must be 20 12");
+            if (!(stream >> w >> h) || w < 3 || h < 3 || w > 512 || h > 512 || hasSize)
+                fail("SIZE must be between 3x3 and 512x512");
+            room.width=w; room.height=h; room.tiles.resize(static_cast<size_t>(w*h));
             hasSize = true;
         } else if (token == "DOORS") {
             std::string dir;
@@ -84,11 +86,11 @@ Room loadRoom(const std::string& path) {
             if (readingTiles) fail("duplicate TILES marker");
             readingTiles = true;
         } else if (readingTiles) {
-            if (row >= kRoomHeight) fail("too many tile rows");
+            if (row >= room.height) fail("too many tile rows");
             // First token is already the first tile on this row.
-            for (int x = 0; x < kRoomWidth; ++x) {
-                if (x && !(stream >> token)) fail("tile row has fewer than 20 tokens");
-                if (token != "A0" && token != "A1" && token != "D0" && token != "P")
+            for (int x = 0; x < room.width; ++x) {
+                if (x && !(stream >> token)) fail("tile row has too few tokens");
+                if (token != Wall::id && token != Floor::id && token != Door::id && token != "P")
                     fail("unknown tile: " + token);
                 if (token == "P") {
                     if (hasSpawn) fail("multiple player spawn markers");
@@ -96,23 +98,23 @@ Room loadRoom(const std::string& path) {
                     hasSpawn = true;
                     token = "A1";
                 }
-                room.tiles[static_cast<size_t>(row * kRoomWidth + x)] = token;
+                room.tiles[static_cast<size_t>(row * room.width + x)] = token;
                 if (token == "A1") room.walkable.push_back({x, row});
             }
-            if (stream >> token) fail("tile row has more than 20 tokens");
+            if (stream >> token) fail("tile row has too many tokens");
             ++row;
         } else {
             fail("unknown directive: " + token);
         }
     }
-    if (!hasId || !hasSize || !readingTiles || row != kRoomHeight || !hasSpawn)
+    if (!hasId || !hasSize || !readingTiles || row != room.height || !hasSpawn)
         throw std::runtime_error(path + ": missing ROOM, SIZE, TILES, 12 rows, or P spawn");
     for (int i = 0; i < 4; ++i) {
         bool found = false;
-        for (int y = 0; y < kRoomHeight; ++y) for (int x = 0; x < kRoomWidth; ++x) {
+        for (int y = 0; y < room.height; ++y) for (int x = 0; x < room.width; ++x) {
             if (!room.isDoor(x, y)) continue;
-            if ((i == 0 && y == 0) || (i == 1 && x == kRoomWidth - 1) ||
-                (i == 2 && y == kRoomHeight - 1) || (i == 3 && x == 0)) found = true;
+            if ((i == 0 && y == 0) || (i == 1 && x == room.width - 1) ||
+                (i == 2 && y == room.height - 1) || (i == 3 && x == 0)) found = true;
         }
         if (room.doors[static_cast<size_t>(i)] && !found)
             throw std::runtime_error(path + ": DOORS declares a side without D0 border tiles");
