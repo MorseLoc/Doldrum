@@ -6,3 +6,7 @@ Open with Visual Studio CMake (windows-debug). The room system now reads variabl
 **Controls:** WASD walk, arrow keys fire, Escape pause, F fullscreen; mouse or arrows+Enter navigate menus.
 
 **Limitations:** The new code has not been compiled on Windows in this environment. Save files remain compatible (version 1, playtime). Room door topology remains scripted; the next pass will generalize room links. Commit after testing.
+
+## Numbered feature index
+
+See `docs/FEATURE_LIBRARY.md` (F001–F014) and `src/core/FeatureIndex.hpp` for the searchable, numbered code index. Each source module has a `FEATURE LIBRARY` comment linking it to its assigned feature ID. This adds documentation only; gameplay is unchanged.

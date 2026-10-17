@@ -1,3 +1,5 @@
+// FEATURE LIBRARY: F011 Menus
+// Full behavior/dependencies: docs/FEATURE_LIBRARY.md; metadata: core/FeatureIndex.hpp
 #include "core/Game.hpp"
 // ui/PixelFont.cpp: single-purpose feature implementation. See docs/FEATURE_LIBRARY.md.
 namespace doldrum_game {

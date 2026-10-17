@@ -1,3 +1,5 @@
+// FEATURE LIBRARY: F007 Squib, F009 Health
+// Full behavior/dependencies: docs/FEATURE_LIBRARY.md; metadata: core/FeatureIndex.hpp
 #include "core/Game.hpp"
 // SQUIB FEATURE: two HP, straight-line pursuit, touch damage, existing collision.
 // Squibs do not navigate around walls; enemy life persists until leaving the run.

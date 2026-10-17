@@ -1,4 +1,7 @@
 #pragma once
+// FEATURE LIBRARY: F009 Health, F014 Application
+// Full behavior/dependencies: docs/FEATURE_LIBRARY.md; metadata: core/FeatureIndex.hpp
+
 // Doldrum gameplay library: definitions are shared but behaviors live in separate modules.
 // Dependencies: SDL3 types, Room spatial data, STL only. Avoid SDL window ownership here.
 #include <SDL3/SDL.h>

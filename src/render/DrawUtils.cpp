@@ -1,3 +1,5 @@
+// FEATURE LIBRARY: F010 Sprite Rendering
+// Full behavior/dependencies: docs/FEATURE_LIBRARY.md; metadata: core/FeatureIndex.hpp
 #include "core/Game.hpp"
 namespace doldrum_game {
 void rect(SDL_Renderer* ren, float x, float y, float w, float h, Uint8 r, Uint8 g, Uint8 b, Uint8 a) {

@@ -1,3 +1,5 @@
+// FEATURE LIBRARY: F006 Camera, F009 Health, F010 Sprite Rendering
+// Full behavior/dependencies: docs/FEATURE_LIBRARY.md; metadata: core/FeatureIndex.hpp
 #include "core/Game.hpp"
 // render/Renderer.cpp: single-purpose feature implementation. See docs/FEATURE_LIBRARY.md.
 namespace doldrum_game {

@@ -1,4 +1,7 @@
 #pragma once
+// FEATURE LIBRARY: F002 Floor, F003 Wall, F004 Door
+// Full behavior/dependencies: docs/FEATURE_LIBRARY.md; metadata: core/FeatureIndex.hpp
+
 #include <string_view>
 namespace doldrum {
 // FLOOR: walkable ground, used as the eligible placement surface.

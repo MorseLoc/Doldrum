@@ -1,4 +1,7 @@
 #pragma once
+// FEATURE LIBRARY: F005 Room
+// Full behavior/dependencies: docs/FEATURE_LIBRARY.md; metadata: core/FeatureIndex.hpp
+
 
 #include <array>
 #include <string>

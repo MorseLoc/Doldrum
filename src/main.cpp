@@ -1,4 +1,5 @@
 #include "core/Game.hpp"
+#include "core/FeatureIndex.hpp"
 #include <SDL3/SDL_main.h>
 // Entry point owns SDL, routes events, and runs the fixed-timestep simulation.
 int main(int,char**) {

@@ -1,3 +1,5 @@
+// FEATURE LIBRARY: F008 Projectile
+// Full behavior/dependencies: docs/FEATURE_LIBRARY.md; metadata: core/FeatureIndex.hpp
 #include "core/Game.hpp"
 // PROJECTILE FEATURE: starter four-way firing, cooldown, movement and wall impacts.
 // Enemy-hit resolution is currently owned by Squib; future effect pipelines will

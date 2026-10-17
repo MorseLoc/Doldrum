@@ -1,3 +1,5 @@
+// FEATURE LIBRARY: F004 Door, F006 Camera, F013 World Flow
+// Full behavior/dependencies: docs/FEATURE_LIBRARY.md; metadata: core/FeatureIndex.hpp
 #include "core/Game.hpp"
 // world/WorldSystem.cpp: single-purpose feature implementation. See docs/FEATURE_LIBRARY.md.
 namespace doldrum_game {

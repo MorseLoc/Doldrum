@@ -1,3 +1,5 @@
+// FEATURE LIBRARY: F014 Application
+// Full behavior/dependencies: docs/FEATURE_LIBRARY.md; metadata: core/FeatureIndex.hpp
 #include "core/Game.hpp"
 // core/AppSystem.cpp: single-purpose feature implementation. See docs/FEATURE_LIBRARY.md.
 namespace doldrum_game {

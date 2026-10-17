@@ -1,3 +1,5 @@
+// FEATURE LIBRARY: F012 Save System
+// Full behavior/dependencies: docs/FEATURE_LIBRARY.md; metadata: core/FeatureIndex.hpp
 #include "core/Game.hpp"
 // save/SaveSystem.cpp: single-purpose feature implementation. See docs/FEATURE_LIBRARY.md.
 namespace doldrum_game {

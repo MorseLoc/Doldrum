@@ -1,3 +1,5 @@
+// FEATURE LIBRARY: F005 Room
+// Full behavior/dependencies: docs/FEATURE_LIBRARY.md; metadata: core/FeatureIndex.hpp
 #include "world/Room.hpp"
 #include "world/Tiles.hpp"
 

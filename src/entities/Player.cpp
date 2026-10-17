@@ -1,3 +1,5 @@
+// FEATURE LIBRARY: F001 Player
+// Full behavior/dependencies: docs/FEATURE_LIBRARY.md; metadata: core/FeatureIndex.hpp
 #include "core/Game.hpp"
 // PLAYER FEATURE: 16x16 visual sprite, axis-separated movement and a smaller
 // collision body for forgiving Zelda-style tile traversal. Depends only on Room.
